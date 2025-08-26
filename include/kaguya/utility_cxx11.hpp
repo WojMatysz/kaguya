@@ -116,5 +116,63 @@ typename FunctionResultType<typename traits::decay<F>::type>::type
 invoke(F &&f, Args &&... args) {
   return detail::invoke_helper(std::forward<F>(f), std::forward<Args>(args)...);
 }
+
+// -----------------------
+// noexcept support helpers
+// for c++17+
+// Add forwarding specializations so noexcept function types are handled
+// by the existing non-noexcept FunctionSignature implementations.
+// Since c++17 kompilers distinguished functions: foo(); and foo() noexcept;
+// so when the function is taged as noexcept the bindings does not recognize function name
+// -----------------------
+
+/* Free function types */
+template <typename R, typename... Args>
+struct FunctionSignature<R(Args...) noexcept, void>
+  : FunctionSignature<R(Args...), void> {};
+
+template <typename R, typename... Args>
+struct FunctionSignature<R(*)(Args...) noexcept, void>
+  : FunctionSignature<R(*)(Args...), void> {};
+
+/* Member function pointers:
+// Cover combinations of cv-qualifiers: none, const, volatile, const volatile
+// and ref-qualifiers: none, &, &&
+// Each noexcept variant forwards to the corresponding non-noexcept specialization.
+*/
+
+#define KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(cv_qual, ref_qual)                        \
+template <typename R, typename C, typename... Args>                              \
+struct FunctionSignature<R (C::*)(Args...) cv_qual ref_qual noexcept, void>       \
+  : FunctionSignature<R (C::*)(Args...) cv_qual ref_qual, void> {};
+
+#define KAGUYA_FORWARD_NOEXCEPT_MEMFUNC_CONST(cv_qual, ref_qual)                  \
+template <typename R, typename C, typename... Args>                              \
+struct FunctionSignature<R (C::*)(Args...) cv_qual ref_qual noexcept, void>       \
+  : FunctionSignature<R (C::*)(Args...) cv_qual ref_qual, void> {};
+
+// expand all common cv/ref combinations
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(, )
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const, )
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(volatile, )
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const volatile, )
+
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(, &)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const, &)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(volatile, &)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const volatile, &)
+
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(, &&)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const, &&)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(volatile, &&)
+KAGUYA_FORWARD_NOEXCEPT_MEMFUNC(const volatile, &&)
+
+#undef KAGUYA_FORWARD_NOEXCEPT_MEMFUNC
+#undef KAGUYA_FORWARD_NOEXCEPT_MEMFUNC_CONST
+
+// -----------------------
+// End noexcept forwarding specializations
+// -----------------------
+
 }
 }
